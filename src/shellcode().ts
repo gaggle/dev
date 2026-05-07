@@ -1,20 +1,24 @@
 import { Path } from "libpkgx";
 
-export default function shellcode() {
+type Env = Record<string, string>;
+
+export default function shellcode(env: Env = Deno.env.toObject()) {
   // find self
-  const dev_cmd = Deno.env.get("PATH")?.split(":").map((path) =>
+  const dev_cmd = env.PATH?.split(":").map((path) =>
     Path.abs(path)?.join("dev")
   )
     .filter((x) => x?.isExecutableFile())[0];
 
   if (!dev_cmd) throw new Error("couldn’t find `dev`");
 
+  const dd = datadir(env);
+
   return `
 _pkgx_chpwd_hook() {
   if ! type _pkgx_dev_try_bye >/dev/null 2>&1 || _pkgx_dev_try_bye; then
     dir="$PWD"
     while [ "$dir" != / -a "$dir" != . ]; do
-      if [ -f "${datadir()}/$dir/dev.pkgx.activated" ]; then
+      if [ -f "${dd}/$dir/dev.pkgx.activated" ]; then
         eval "$(${dev_cmd} "$dir")"
         break
       fi
@@ -29,8 +33,8 @@ dev() {
     if type -f _pkgx_dev_try_bye >/dev/null 2>&1; then
       dir="$PWD"
       while [ "$dir" != / -a "$dir" != . ]; do
-        if [ -f "${datadir()}/$dir/dev.pkgx.activated" ]; then
-          rm "${datadir()}/$dir/dev.pkgx.activated"
+        if [ -f "${dd}/$dir/dev.pkgx.activated" ]; then
+          rm "${dd}/$dir/dev.pkgx.activated"
           break
         fi
         dir="$(dirname "$dir")"
@@ -43,8 +47,8 @@ dev() {
     if [ "$2" ]; then
       "${dev_cmd}" "$@"
     elif ! type -f _pkgx_dev_try_bye >/dev/null 2>&1; then
-      mkdir -p "${datadir()}$PWD"
-      touch "${datadir()}$PWD/dev.pkgx.activated"
+      mkdir -p "${dd}$PWD"
+      touch "${dd}$PWD/dev.pkgx.activated"
       eval "$(${dev_cmd})"
     else
       echo "devenv already active" >&2
@@ -77,19 +81,19 @@ fi
 `.trim();
 }
 
-export function datadir() {
+export function datadir(env: Env = Deno.env.toObject()) {
   return new Path(
-    Deno.env.get("XDG_DATA_HOME")?.trim() || platform_data_home_default(),
+    env.XDG_DATA_HOME?.trim() || platform_data_home_default(env),
   ).join("pkgx", "dev");
 }
 
-function platform_data_home_default() {
+function platform_data_home_default(env: Env) {
   const home = Path.home();
   switch (Deno.build.os) {
     case "darwin":
       return home.join("Library/Application Support");
     case "windows": {
-      const LOCALAPPDATA = Deno.env.get("LOCALAPPDATA");
+      const LOCALAPPDATA = env.LOCALAPPDATA;
       if (LOCALAPPDATA) {
         return new Path(LOCALAPPDATA);
       } else {
