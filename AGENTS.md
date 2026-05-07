@@ -7,7 +7,7 @@ Public repository for developer environment activation tooling.
 - `deno fmt --check .`
 - `deno lint .`
 - `deno check ./app.ts`
-- `deno test --allow-read --allow-write --allow-env`
+- `deno test --allow-read --allow-write --allow-env --allow-run=bash`
 
 ## Always Do
 
