@@ -248,3 +248,54 @@ same as `dev` does in your terminal.
 We use `deno`, so either install that or—you know—type `dev`.
 
 Edit [./src/sniff.ts](src/sniff.ts) to add new dev types.
+
+### Running your fork locally
+
+`./app.ts` is a `deno` script with a shebang, so once you’ve cloned the repo you
+can invoke it directly:
+
+```sh
+$ ./app.ts --version
+dev 0.0.0+dev
+```
+
+To test changes as your daily-driver `dev` you need to make the shellcode it
+generates embed _your_ local script. Two gotchas to be aware of:
+
+1. **Symlinking `app.ts` directly breaks `deno.json` resolution.** Deno looks
+   for `deno.json` next to the script path it’s actually invoked as, and doesn’t
+   follow symlinks. Use a thin shell wrapper instead:
+
+   ```sh
+   cat > ~/.local/bin/dev <<EOF
+   #!/bin/sh
+   exec $(pwd)/app.ts "\$@"
+   EOF
+   chmod +x ~/.local/bin/dev
+   ```
+
+2. **The shellcode embeds the path to `dev` at generation time** by searching
+   `$PATH`. So `~/.local/bin` needs to be ahead of any other `dev` install
+   _before_ shell init runs `eval "$(dev --shellcode)"`.
+
+   In your `~/.zshrc` (or `~/.bashrc`), prepend `~/.local/bin` to `PATH` before
+   the `dev` integration line:
+
+   ```sh
+   export PATH="$HOME/.local/bin:$PATH"
+   eval "$(dev --shellcode)"
+   ```
+
+   (If you’re already integrated via `dev integrate`, that line will already
+   exist, just add the `export PATH=…` above it)
+
+Open a fresh shell and verify the hook is wired to your local script:
+
+```zsh
+functions _pkgx_chpwd_hook | grep eval
+# expect: eval "$(/Users/you/.local/bin/dev "$dir")"
+```
+
+If you see the path to your wrapper, you’re running your fork end-to-end.
+Reverting is a `rm ~/.local/bin/dev` and removing the line(s) from your shell
+rc.
