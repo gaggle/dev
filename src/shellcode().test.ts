@@ -4,7 +4,7 @@ import shellcode, { datadir } from "./shellcode().ts";
 
 // Issue #51: cd-ing directly into a subdir of an already-activated devenv
 // must activate the devenv (and not emit `permission denied`). This drives
-// the generated shellcode through a real zsh subprocess with a fake `dev`
+// the generated shellcode through a real bash subprocess with a fake `dev`
 // on PATH so we can assert how the chpwd hook invokes it.
 Deno.test("chpwd hook activates when cd-ing into subdir of devenv (#51)", async () => {
   const tmp = Path.mktemp();
@@ -32,7 +32,7 @@ Deno.test("chpwd hook activates when cd-ing into subdir of devenv (#51)", async 
     XDG_DATA_HOME: xdg.string,
   };
 
-  const proc = await new Deno.Command("zsh", {
+  const proc = await new Deno.Command("bash", {
     args: ["-c", `${shellcode(env)}\ncd "${sub}"`],
     env,
     stdout: "piped",
